@@ -1,0 +1,227 @@
+version: "2.1"
+
+services:
+  # ==================== HDFS CLUSTER ====================
+  namenode:
+    build: ./namenode
+    container_name: namenode
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=stockprice_cluster
+    env_file:
+      - ./hadoop.env
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    networks:
+      - hadoop_network
+  
+  datanode1:
+    build: ./datanode
+    container_name: datanode1
+    restart: always
+    depends_on:
+      - namenode
+    volumes:
+      - hadoop_datanode1:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  datanode2:
+    build: ./datanode
+    container_name: datanode2
+    restart: always
+    depends_on:
+      - namenode
+    volumes:
+      - hadoop_datanode2:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  datanode3:
+    build: ./datanode
+    container_name: datanode3
+    restart: always
+    depends_on:
+      - namenode
+    volumes:
+      - hadoop_datanode3:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  datanode4:
+    build: ./datanode
+    container_name: datanode4
+    restart: always
+    depends_on:
+      - namenode
+    volumes:
+      - hadoop_datanode4:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  # ==================== YARN SERVICES ====================
+  resourcemanager:
+    build: ./resourcemanager
+    container_name: resourcemanager
+    restart: on-failure
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
+      - datanode4 
+    env_file:
+      - ./hadoop.env
+    ports:
+      - "8088:8088"
+    networks:
+      - hadoop_network
+  
+  nodemanager1:
+    build: ./nodemanager
+    container_name: nodemanager1
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
+      - datanode4 
+    env_file:
+      - ./hadoop.env
+    ports:
+      - "8042:8042"
+    networks:
+      - hadoop_network
+  
+  historyserver:
+    build: ./historyserver
+    container_name: historyserver
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3 
+      - datanode4 
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    env_file:
+      - ./hadoop.env
+    ports:
+      - "8188:8188"
+    networks:
+      - hadoop_network
+  
+  # ==================== SPARK CLUSTER ====================
+  spark-master:
+    image: bde2020/spark-master:3.0.1-hadoop3.2
+    container_name: spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  spark-worker-1:
+    image: bde2020/spark-worker:3.0.1-hadoop3.2
+    container_name: spark-worker-1
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  spark-worker-2:
+    image: bde2020/spark-worker:3.0.1-hadoop3.2
+    container_name: spark-worker-2
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+    ports:
+      - "8082:8081"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  spark-worker-3:
+    image: bde2020/spark-worker:3.0.1-hadoop3.2
+    container_name: spark-worker-3
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+    ports:
+      - "8083:8081"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+  
+  spark-worker-4:
+    image: bde2020/spark-worker:3.0.1-hadoop3.2
+    container_name: spark-worker-4
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=2g
+    ports:
+      - "8084:8081"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - hadoop_network
+      
+  # ==================== JUPYTER NOTEBOOK ====================
+  pyspark-notebook:
+    image: jupyter/pyspark-notebook:latest
+    container_name: pyspark-notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebook:/home/jovyan/work
+      - ./datack:/home/jovyan/datack
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=spark://spark-master:7077
+    networks:
+      - hadoop_network
+
+# ==================== NETWORKS ====================
+networks:
+  hadoop_network:
+    driver: bridge
+
+# ==================== VOLUMES ====================
+volumes:
+  hadoop_namenode:
+  hadoop_datanode1:
+  hadoop_datanode2:
+  hadoop_datanode3:
+  hadoop_datanode4:
+  hadoop_historyserver:
